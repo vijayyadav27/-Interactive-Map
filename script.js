@@ -1,253 +1,550 @@
+// API Configuration
+let OPENCAGE_API_KEY = '';
+const BASE_URL = 'https://api.opencagedata.com/geocode/v1/json';
+
 // Initialize the map
 const map = L.map('map').setView([40.7128, -74.0060], 12);
 
-// Add tile layer
+// Add tile layer (OpenStreetMap - no API key required)
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
-// Sample locations data
-const locations = [
+// Store markers
+let markers = [];
+let currentLocationMarker = null;
+
+// Sample fallback locations (used when no API key)
+const fallbackLocations = [
     {
         id: 1,
-        name: "Central Park",
+        name: "Central Park, New York",
         lat: 40.7812,
         lng: -73.9665,
         category: "park",
-        description: "A large public park in Manhattan with walking paths and lakes.",
-        image: "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=500&q=60"
+        description: "A large public park in Manhattan with walking paths and lakes."
     },
     {
         id: 2,
-        name: "Metropolitan Museum of Art",
-        lat: 40.7794,
-        lng: -73.9632,
-        category: "museum",
-        description: "One of the world's largest art museums.",
-        image: "https://images.unsplash.com/photo-1596383526467-59579c5e6a89?w=500&q=60"
+        name: "Times Square, New York",
+        lat: 40.7580,
+        lng: -73.9855,
+        category: "landmark",
+        description: "Famous commercial intersection and entertainment hub."
     },
     {
         id: 3,
-        name: "Statue of Liberty",
-        lat: 40.6892,
-        lng: -74.0445,
-        category: "landmark",
-        description: "Iconic statue in New York Harbor.",
-        image: "https://images.unsplash.com/photo-1548013146-72479768bada?w=500&q=60"
-    },
-    {
-        id: 4,
-        name: "Empire State Building",
-        lat: 40.7484,
-        lng: -73.9857,
-        category: "landmark",
-        description: "Famous skyscraper with observation decks.",
-        image: "https://images.unsplash.com/photo-1502104034360-73176bb1e92e?w=500&q=60"
-    },
-    {
-        id: 5,
-        name: "Brooklyn Bridge",
+        name: "Brooklyn Bridge, New York",
         lat: 40.7061,
         lng: -73.9969,
         category: "landmark",
-        description: Historic bridge connecting Manhattan and Brooklyn.",
-        image: "https://images.unsplash.com/photo-1508004680779-013ba5954e72?w=500&q=60"
+        description: "Historic bridge connecting Manhattan and Brooklyn."
+    },
+    {
+        id: 4,
+        name: "Statue of Liberty, New York",
+        lat: 40.6892,
+        lng: -74.0445,
+        category: "landmark",
+        description: "Iconic statue in New York Harbor."
+    },
+    {
+        id: 5,
+        name: "Empire State Building, New York",
+        lat: 40.7484,
+        lng: -73.9857,
+        category: "landmark",
+        description: "Famous skyscraper with observation decks."
     }
 ];
 
-// Store all markers
-let allMarkers = [];
+// Load saved API key from localStorage
+function loadApiKey() {
+    const savedKey = localStorage.getItem('opencage_api_key');
+    if (savedKey) {
+        OPENCAGE_API_KEY = savedKey;
+        document.getElementById('api-key-input').value = savedKey;
+        showApiStatus('API key loaded successfully!', 'success');
+    } else {
+        showApiStatus('Please enter your OpenCage API key to enable location search.', 'error');
+    }
+}
 
-// Create custom icons
-function createCustomIcon(category) {
+// Save API key to localStorage
+function saveApiKey() {
+    const apiKeyInput = document.getElementById('api-key-input');
+    const key = apiKeyInput.value.trim();
+    
+    if (!key) {
+        showApiStatus('Please enter an API key', 'error');
+        return;
+    }
+    
+    OPENCAGE_API_KEY = key;
+    localStorage.setItem('opencage_api_key', key);
+    showApiStatus('API key saved successfully! You can now search locations worldwide.', 'success');
+    
+    // Enable search functionality
+    document.getElementById('search-input').disabled = false;
+    document.getElementById('search-btn').disabled = false;
+}
+
+// Show API status message
+function showApiStatus(message, type) {
+    const statusEl = document.getElementById('api-status');
+    statusEl.textContent = message;
+    statusEl.className = `api-status ${type}`;
+    statusEl.style.display = 'block';
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            statusEl.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// Create custom marker icon
+function createCustomIcon(category, isCurrentLocation = false) {
     const colors = {
-        landmark: 'red',
-        museum: 'blue',
-        park: 'green',
-        restaurant: 'orange'
+        landmark: '#e74c3c',
+        park: '#27ae60',
+        museum: '#3498db',
+        restaurant: '#f39c12',
+        current: '#9b59b6',
+        searched: '#667eea'
     };
     
+    const color = isCurrentLocation ? colors.current : colors[category] || colors.searched;
+    const emoji = isCurrentLocation ? '📍' : 
+                 category === 'landmark' ? '🏛️' :
+                 category === 'park' ? '🌳' :
+                 category === 'museum' ? '🏛️' :
+                 category === 'restaurant' ? '🍽️' : '📌';
+    
     return L.divIcon({
-        html: `<div style="background-color: ${colors[category] || 'gray'}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${category.charAt(0).toUpperCase()}</div>`,
+        html: `
+            <div style="
+                background-color: ${color};
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                border: 3px solid white;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 16px;
+            ">${emoji}</div>
+        `,
         className: 'custom-marker',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
     });
 }
 
-// Add markers to map
-function addMarkersToMap(locationsArray) {
-    // Clear existing markers
-    allMarkers.forEach(marker => map.removeLayer(marker));
-    allMarkers = [];
+// Geocoding function - Convert address to coordinates
+async function geocodeAddress(address) {
+    if (!OPENCAGE_API_KEY) {
+        throw new Error('API key not configured. Please enter your OpenCage API key.');
+    }
     
-    locationsArray.forEach(location => {
-        const marker = L.marker([location.lat, location.lng], {
-            icon: createCustomIcon(location.category)
-        });
+    try {
+        console.log(`🔍 Geocoding: ${address}`);
         
-        // Create popup content
+        const response = await fetch(
+            `${BASE_URL}?q=${encodeURIComponent(address)}&key=${OPENCAGE_API_KEY}&limit=1&no_annotations=1`
+        );
+        
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            const result = data.results[0];
+            const { lat, lng } = result.geometry;
+            const locationName = result.formatted;
+            
+            console.log(`📍 Found: ${locationName} at ${lat}, ${lng}`);
+            
+            return {
+                lat: lat,
+                lng: lng,
+                name: locationName,
+                address: result.formatted,
+                success: true
+            };
+        } else {
+            throw new Error('No results found for this address. Try a more specific search.');
+        }
+        
+    } catch (error) {
+        console.error('Geocoding error:', error);
+        throw error;
+    }
+}
+
+// Reverse geocoding function - Convert coordinates to address
+async function reverseGeocode(lat, lng) {
+    if (!OPENCAGE_API_KEY) {
+        return {
+            address: 'API key required for address lookup',
+            success: false
+        };
+    }
+    
+    try {
+        const response = await fetch(
+            `${BASE_URL}?q=${lat}+${lng}&key=${OPENCAGE_API_KEY}&limit=1`
+        );
+        
+        if (!response.ok) {
+            throw new Error('Reverse geocoding failed');
+        }
+        
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            const result = data.results[0];
+            return {
+                address: result.formatted,
+                components: result.components,
+                success: true
+            };
+        } else {
+            throw new Error('No address found');
+        }
+        
+    } catch (error) {
+        console.error('Reverse geocoding error:', error);
+        return {
+            address: 'Address not available',
+            success: false
+        };
+    }
+}
+
+// Add marker to map
+function addMarker(location, isCurrentLocation = false, isSearched = false) {
+    const marker = L.marker([location.lat, location.lng], {
+        icon: createCustomIcon(location.category, isCurrentLocation)
+    }).addTo(map);
+    
+    // Get address for popup
+    reverseGeocode(location.lat, location.lng).then(addressInfo => {
         const popupContent = `
-            <div style="max-width: 250px;">
-                <h3 style="margin: 0 0 5px 0; color: #2c3e50;">${location.name}</h3>
-                <span style="background: ${getCategoryColor(location.category)}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${location.category}</span>
-                ${location.image ? `<img src="${location.image}" alt="${location.name}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 5px; margin: 8px 0;">` : ''}
-                <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">${location.description}</p>
+            <div style="min-width: 280px; max-width: 300px;">
+                <h3 style="margin: 0 0 12px 0; color: #2c3e50; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
+                    ${location.name}
+                </h3>
+                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                    <strong style="color: #495057;">📍 Address:</strong><br>
+                    <span style="color: #666; font-size: 14px;">${addressInfo.success ? addressInfo.address : 'Address not available'}</span>
+                </div>
+                ${location.description ? `
+                <div style="color: #666; font-size: 14px; margin-bottom: 10px;">
+                    <strong>📝 Description:</strong><br>
+                    ${location.description}
+                </div>
+                ` : ''}
+                <div style="margin-top: 8px; color: #7f8c8d; font-size: 12px; font-family: monospace;">
+                    📍 ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}
+                </div>
             </div>
         `;
         
         marker.bindPopup(popupContent);
-        
-        // Add click event
-        marker.on('click', function() {
-            map.setView([location.lat, location.lng], 15, {
-                animate: true,
-                duration: 1
-            });
-        });
-        
-        marker.addTo(map);
-        allMarkers.push(marker);
     });
+    
+    if (isCurrentLocation) {
+        currentLocationMarker = marker;
+    } else {
+        markers.push(marker);
+    }
+    
+    return marker;
 }
 
-// Get category color
-function getCategoryColor(category) {
-    const colors = {
-        landmark: '#e74c3c',
-        museum: '#3498db',
-        park: '#27ae60',
-        restaurant: '#f39c12'
-    };
-    return colors[category] || '#95a5a6';
+// Clear all markers except current location
+function clearMarkers() {
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+}
+
+// Search functionality
+async function handleSearch() {
+    const searchInput = document.getElementById('search-input');
+    const searchTerm = searchInput.value.trim();
+    
+    if (!searchTerm) {
+        alert('Please enter a location to search for');
+        return;
+    }
+    
+    if (!OPENCAGE_API_KEY) {
+        alert('Please enter your OpenCage API key first to enable search functionality.');
+        return;
+    }
+    
+    console.log(`🔍 Searching for: ${searchTerm}`);
+    
+    // Show loading state
+    const searchBtn = document.getElementById('search-btn');
+    const originalText = searchBtn.innerHTML;
+    searchBtn.innerHTML = '<span class="btn-icon">⏳</span> Searching...';
+    searchBtn.disabled = true;
+    
+    try {
+        const result = await geocodeAddress(searchTerm);
+        
+        if (result.success) {
+            // Clear previous markers (keep current location marker)
+            clearMarkers();
+            
+            // Add new marker for searched location
+            const location = {
+                name: result.name,
+                lat: result.lat,
+                lng: result.lng,
+                category: 'landmark',
+                description: `Searched location: ${searchTerm}`
+            };
+            
+            addMarker(location, false, true);
+            
+            // Center map on the found location
+            map.setView([result.lat, result.lng], 15);
+            
+            // Update location list
+            populateLocationList([location]);
+            
+            // Update coordinates display
+            updateCoordinatesDisplay(result.lat, result.lng);
+            
+            console.log(`✅ Found and centered on: ${result.name}`);
+        }
+        
+    } catch (error) {
+        console.error('Search error:', error);
+        alert(`Search failed: ${error.message}`);
+    } finally {
+        // Reset button state
+        searchBtn.innerHTML = originalText;
+        searchBtn.disabled = false;
+    }
+}
+
+// Get user's current location
+function getCurrentLocation() {
+    if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser');
+        return;
+    }
+    
+    console.log('📍 Getting current location...');
+    
+    const locationBtn = document.getElementById('current-location-btn');
+    const originalText = locationBtn.innerHTML;
+    locationBtn.innerHTML = '<span class="btn-icon">⏳</span> Locating...';
+    locationBtn.disabled = true;
+    
+    navigator.geolocation.getCurrentPosition(
+        async function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            console.log(`📍 Current location: ${lat}, ${lng}`);
+            
+            // Remove previous current location marker
+            if (currentLocationMarker) {
+                map.removeLayer(currentLocationMarker);
+            }
+            
+            // Get address for current location
+            const addressInfo = await reverseGeocode(lat, lng);
+            
+            const currentLocation = {
+                name: 'Your Current Location',
+                lat: lat,
+                lng: lng,
+                category: 'current',
+                description: addressInfo.success ? addressInfo.address : 'Your current position'
+            };
+            
+            // Add current location marker
+            addMarker(currentLocation, true);
+            
+            // Center map on current location
+            map.setView([lat, lng], 15);
+            
+            // Update location list
+            populateLocationList([currentLocation]);
+            
+            // Update coordinates display
+            updateCoordinatesDisplay(lat, lng);
+            
+            console.log('✅ Current location marked');
+            
+            // Reset button
+            locationBtn.innerHTML = originalText;
+            locationBtn.disabled = false;
+        },
+        function(error) {
+            console.error('Geolocation error:', error);
+            let errorMessage = 'Unable to retrieve your location. ';
+            
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMessage += 'Please allow location access in your browser settings.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMessage += 'Location information is unavailable.';
+                    break;
+                case error.TIMEOUT:
+                    errorMessage += 'Location request timed out. Please try again.';
+                    break;
+                default:
+                    errorMessage += 'An unknown error occurred.';
+            }
+            
+            alert(errorMessage);
+            
+            // Reset button
+            locationBtn.innerHTML = originalText;
+            locationBtn.disabled = false;
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+        }
+    );
+}
+
+// Update coordinates display
+function updateCoordinatesDisplay(lat, lng) {
+    const coordsDisplay = document.querySelector('.coordinates-display');
+    if (coordsDisplay) {
+        coordsDisplay.innerHTML = `📍 Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
 }
 
 // Populate location list
-function populateLocationList(locationsArray) {
+function populateLocationList(locations) {
     const container = document.getElementById('locations-container');
-    container.innerHTML = '';
+    const countEl = document.getElementById('locations-count');
     
-    locationsArray.forEach(location => {
-        const item = document.createElement('li');
-        item.className = 'location-item';
-        item.innerHTML = `
-            <div class="location-name">${location.name} 
-                <span class="location-category">${location.category}</span>
+    container.innerHTML = '';
+    countEl.textContent = locations.length;
+    
+    locations.forEach(location => {
+        const li = document.createElement('li');
+        li.className = 'location-item';
+        li.innerHTML = `
+            <div class="location-header">
+                <div class="location-name">${location.name}</div>
+                <div class="location-category">${location.category}</div>
             </div>
             <div class="location-description">${location.description}</div>
+            <div class="location-coords">${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}</div>
         `;
         
-        item.addEventListener('click', () => {
-            map.setView([location.lat, location.lng], 15, {
-                animate: true,
-                duration: 1
-            });
+        li.addEventListener('click', function() {
+            map.setView([location.lat, location.lng], 15);
+            updateCoordinatesDisplay(location.lat, location.lng);
             
-            // Find and open the marker's popup
+            // Find and open the marker popup
+            const allMarkers = [...markers];
+            if (currentLocationMarker) allMarkers.push(currentLocationMarker);
+            
             allMarkers.forEach(marker => {
-                const latLng = marker.getLatLng();
-                if (latLng.lat === location.lat && latLng.lng === location.lng) {
+                const markerLatLng = marker.getLatLng();
+                if (markerLatLng.lat === location.lat && markerLatLng.lng === location.lng) {
                     marker.openPopup();
                 }
             });
         });
         
-        container.appendChild(item);
+        container.appendChild(li);
     });
 }
 
-// Search functionality
-function performSearch() {
-    const searchInput = document.getElementById('search-input');
-    const categoryFilter = document.getElementById('category-filter');
+// Add click event to map for coordinates display
+map.on('click', async function(e) {
+    const { lat, lng } = e.latlng;
     
-    const searchTerm = searchInput.value.toLowerCase().trim();
-    const category = categoryFilter.value;
+    console.log(`🗺️ Map clicked at: ${lat}, ${lng}`);
+    updateCoordinatesDisplay(lat, lng);
     
-    let results = locations;
+    const addressInfo = await reverseGeocode(lat, lng);
     
-    // Filter by category
-    if (category !== 'all') {
-        results = results.filter(location => location.category === category);
-    }
-    
-    // Filter by search term
-    if (searchTerm) {
-        results = results.filter(location => 
-            location.name.toLowerCase().includes(searchTerm) ||
-            location.description.toLowerCase().includes(searchTerm)
-        );
-    }
-    
-    // Update map and list
-    addMarkersToMap(results);
-    populateLocationList(results);
-    
-    // Adjust map view to show all results
-    if (results.length > 0) {
-        const group = new L.featureGroup(allMarkers);
-        map.fitBounds(group.getBounds().pad(0.1));
-    }
-}
+    const popup = L.popup()
+        .setLatLng([lat, lng])
+        .setContent(`
+            <div style="min-width: 250px;">
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Clicked Location</h4>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                    <strong>📍 Address:</strong><br>
+                    <span style="font-size: 14px; color: #666;">${addressInfo.address}</span>
+                </div>
+                <div style="color: #888; font-size: 12px; font-family: monospace;">
+                    ${lat.toFixed(6)}, ${lng.toFixed(6)}
+                </div>
+            </div>
+        `)
+        .openOn(map);
+});
 
 // Initialize the application
 function initApp() {
-    // Add initial markers
-    addMarkersToMap(locations);
-    populateLocationList(locations);
+    console.log('🚀 Initializing Interactive Map Explorer');
+    
+    // Load saved API key
+    loadApiKey();
+    
+    // Add fallback locations
+    fallbackLocations.forEach(location => {
+        addMarker(location);
+    });
+    
+    // Populate initial location list
+    populateLocationList(fallbackLocations);
     
     // Set up event listeners
-    document.getElementById('search-btn').addEventListener('click', performSearch);
+    document.getElementById('save-api-key').addEventListener('click', saveApiKey);
+    document.getElementById('search-btn').addEventListener('click', handleSearch);
+    document.getElementById('current-location-btn').addEventListener('click', getCurrentLocation);
     
     document.getElementById('search-input').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            performSearch();
+            handleSearch();
         }
     });
     
-    document.getElementById('category-filter').addEventListener('change', performSearch);
-    
-    // Current location button
-    document.getElementById('current-location-btn').addEventListener('click', function() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    
-                    map.setView([lat, lng], 15, {
-                        animate: true,
-                        duration: 1
-                    });
-                    
-                    // Add temporary marker
-                    const marker = L.marker([lat, lng], {
-                        icon: L.divIcon({
-                            html: '<div style="background-color: #e74c3c; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    }).addTo(map);
-                    
-                    marker.bindPopup('You are here!').openPopup();
-                    
-                    // Remove after 5 seconds
-                    setTimeout(() => {
-                        map.removeLayer(marker);
-                    }, 5000);
-                },
-                function(error) {
-                    alert('Could not get your location. Please check your browser permissions.');
-                }
-            );
-        } else {
-            alert('Geolocation is not supported by your browser.');
-        }
+    // Category filter
+    document.getElementById('category-filter').addEventListener('change', function() {
+        // For demo with fallback locations
+        clearMarkers();
+        fallbackLocations.forEach(location => {
+            if (this.value === 'all' || location.category === this.value) {
+                addMarker(location);
+            }
+        });
     });
     
-    console.log('Map application initialized successfully!');
-    console.log('Try searching for: "central", "museum", or "statue"');
+    // Disable search if no API key
+    if (!OPENCAGE_API_KEY) {
+        document.getElementById('search-input').disabled = true;
+        document.getElementById('search-btn').disabled = true;
+    }
+    
+    console.log('✅ Interactive Map Explorer initialized');
+    console.log('💡 Get your free API key at: https://opencagedata.com/api');
 }
 
-// Start the app when page loads
+// Start the application when page loads
 document.addEventListener('DOMContentLoaded', initApp);
