@@ -1,5 +1,5 @@
 // API Configuration
-let OPENCAGE_API_KEY = '';
+const OPENCAGE_API_KEY = '8ec50afc35a642eebe1d88948b15f93a';
 const BASE_URL = 'https://api.opencagedata.com/geocode/v1/json';
 
 // Initialize the map
@@ -14,7 +14,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let markers = [];
 let currentLocationMarker = null;
 
-// Sample fallback locations (used when no API key)
+// Sample fallback locations
 const fallbackLocations = [
     {
         id: 1,
@@ -58,51 +58,13 @@ const fallbackLocations = [
     }
 ];
 
-// Load saved API key from localStorage
-function loadApiKey() {
-    const savedKey = localStorage.getItem('opencage_api_key');
-    if (savedKey) {
-        OPENCAGE_API_KEY = savedKey;
-        document.getElementById('api-key-input').value = savedKey;
-        showApiStatus('API key loaded successfully!', 'success');
-    } else {
-        showApiStatus('Please enter your OpenCage API key to enable location search.', 'error');
+// Hide API setup section since we have the key
+document.addEventListener('DOMContentLoaded', function() {
+    const apiSetupSection = document.querySelector('.api-setup');
+    if (apiSetupSection) {
+        apiSetupSection.style.display = 'none';
     }
-}
-
-// Save API key to localStorage
-function saveApiKey() {
-    const apiKeyInput = document.getElementById('api-key-input');
-    const key = apiKeyInput.value.trim();
-    
-    if (!key) {
-        showApiStatus('Please enter an API key', 'error');
-        return;
-    }
-    
-    OPENCAGE_API_KEY = key;
-    localStorage.setItem('opencage_api_key', key);
-    showApiStatus('API key saved successfully! You can now search locations worldwide.', 'success');
-    
-    // Enable search functionality
-    document.getElementById('search-input').disabled = false;
-    document.getElementById('search-btn').disabled = false;
-}
-
-// Show API status message
-function showApiStatus(message, type) {
-    const statusEl = document.getElementById('api-status');
-    statusEl.textContent = message;
-    statusEl.className = `api-status ${type}`;
-    statusEl.style.display = 'block';
-    
-    // Auto-hide success messages after 5 seconds
-    if (type === 'success') {
-        setTimeout(() => {
-            statusEl.style.display = 'none';
-        }, 5000);
-    }
-}
+});
 
 // Create custom marker icon
 function createCustomIcon(category, isCurrentLocation = false) {
@@ -147,10 +109,6 @@ function createCustomIcon(category, isCurrentLocation = false) {
 
 // Geocoding function - Convert address to coordinates
 async function geocodeAddress(address) {
-    if (!OPENCAGE_API_KEY) {
-        throw new Error('API key not configured. Please enter your OpenCage API key.');
-    }
-    
     try {
         console.log(`🔍 Geocoding: ${address}`);
         
@@ -190,13 +148,6 @@ async function geocodeAddress(address) {
 
 // Reverse geocoding function - Convert coordinates to address
 async function reverseGeocode(lat, lng) {
-    if (!OPENCAGE_API_KEY) {
-        return {
-            address: 'API key required for address lookup',
-            success: false
-        };
-    }
-    
     try {
         const response = await fetch(
             `${BASE_URL}?q=${lat}+${lng}&key=${OPENCAGE_API_KEY}&limit=1`
@@ -285,11 +236,6 @@ async function handleSearch() {
         return;
     }
     
-    if (!OPENCAGE_API_KEY) {
-        alert('Please enter your OpenCage API key first to enable search functionality.');
-        return;
-    }
-    
     console.log(`🔍 Searching for: ${searchTerm}`);
     
     // Show loading state
@@ -326,16 +272,51 @@ async function handleSearch() {
             updateCoordinatesDisplay(result.lat, result.lng);
             
             console.log(`✅ Found and centered on: ${result.name}`);
+            
+            // Show success message
+            showSearchStatus(`Found: ${result.name}`, 'success');
         }
         
     } catch (error) {
         console.error('Search error:', error);
-        alert(`Search failed: ${error.message}`);
+        showSearchStatus(`Search failed: ${error.message}`, 'error');
     } finally {
         // Reset button state
         searchBtn.innerHTML = originalText;
         searchBtn.disabled = false;
     }
+}
+
+// Show search status message
+function showSearchStatus(message, type) {
+    // Create or update status element
+    let statusEl = document.getElementById('search-status');
+    if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.id = 'search-status';
+        statusEl.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 300px;
+        `;
+        document.body.appendChild(statusEl);
+    }
+    
+    statusEl.textContent = message;
+    statusEl.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
+    statusEl.style.color = type === 'success' ? '#155724' : '#721c24';
+    statusEl.style.border = type === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        statusEl.style.display = 'none';
+    }, 5000);
 }
 
 // Get user's current location
@@ -389,6 +370,9 @@ function getCurrentLocation() {
             
             console.log('✅ Current location marked');
             
+            // Show success message
+            showSearchStatus('Found your current location!', 'success');
+            
             // Reset button
             locationBtn.innerHTML = originalText;
             locationBtn.disabled = false;
@@ -411,7 +395,7 @@ function getCurrentLocation() {
                     errorMessage += 'An unknown error occurred.';
             }
             
-            alert(errorMessage);
+            showSearchStatus(errorMessage, 'error');
             
             // Reset button
             locationBtn.innerHTML = originalText;
@@ -502,9 +486,13 @@ map.on('click', async function(e) {
 // Initialize the application
 function initApp() {
     console.log('🚀 Initializing Interactive Map Explorer');
+    console.log('✅ API Key loaded: 8ec50afc35a642eebe1d88948b15f93a');
     
-    // Load saved API key
-    loadApiKey();
+    // Hide API setup section
+    const apiSetupSection = document.querySelector('.api-setup');
+    if (apiSetupSection) {
+        apiSetupSection.style.display = 'none';
+    }
     
     // Add fallback locations
     fallbackLocations.forEach(location => {
@@ -515,7 +503,6 @@ function initApp() {
     populateLocationList(fallbackLocations);
     
     // Set up event listeners
-    document.getElementById('save-api-key').addEventListener('click', saveApiKey);
     document.getElementById('search-btn').addEventListener('click', handleSearch);
     document.getElementById('current-location-btn').addEventListener('click', getCurrentLocation);
     
@@ -536,14 +523,13 @@ function initApp() {
         });
     });
     
-    // Disable search if no API key
-    if (!OPENCAGE_API_KEY) {
-        document.getElementById('search-input').disabled = true;
-        document.getElementById('search-btn').disabled = true;
-    }
+    // Show welcome message
+    setTimeout(() => {
+        showSearchStatus('🚀 Ready! Search any location worldwide', 'success');
+    }, 1000);
     
-    console.log('✅ Interactive Map Explorer initialized');
-    console.log('💡 Get your free API key at: https://opencagedata.com/api');
+    console.log('✅ Interactive Map Explorer initialized with real API');
+    console.log('💡 Try searching for: "Eiffel Tower, Paris" or "Sydney Opera House"');
 }
 
 // Start the application when page loads
