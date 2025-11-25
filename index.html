@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Map - Points of Interest</title>
+    <title>Interactive Map Explorer | Real Location Search</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -13,36 +13,82 @@
 </head>
 <body>
     <div class="container">
+        <!-- Header Section -->
         <header>
-            <h1>Interactive Map Explorer</h1>
-            <p>Discover interesting locations around the world</p>
+            <h1>🌍 Interactive Map Explorer</h1>
+            <p>Search real locations worldwide with live geocoding API</p>
         </header>
-        
-        <div class="search-container">
-            <input type="text" id="search-input" placeholder="Search for locations...">
-            <button id="search-btn">Search</button>
-            <button id="current-location-btn">📍 My Location</button>
+
+        <!-- API Setup Instructions -->
+        <div class="api-setup">
+            <h3>🚀 Quick Setup Required</h3>
+            <p>To enable location search, get a free API key:</p>
+            <ol>
+                <li>Visit <a href="https://opencagedata.com/api" target="_blank">OpenCage Geocoding</a></li>
+                <li>Sign up for free (2,500 requests/day)</li>
+                <li>Copy your API key and paste it below</li>
+            </ol>
+            <div class="api-input-container">
+                <input type="text" id="api-key-input" placeholder="Paste your OpenCage API key here">
+                <button id="save-api-key">Save API Key</button>
+            </div>
+            <div id="api-status" class="api-status"></div>
         </div>
-        
-        <div class="filter-container">
-            <label for="category-filter">Filter by Category:</label>
-            <select id="category-filter">
-                <option value="all">All Categories</option>
-                <option value="landmark">Landmarks</option>
-                <option value="museum">Museums</option>
-                <option value="park">Parks</option>
-                <option value="restaurant">Restaurants</option>
-            </select>
+
+        <!-- Controls Section -->
+        <div class="controls-section">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search any address worldwide...">
+                <button id="search-btn">
+                    <span class="btn-icon">🔍</span>
+                    Search
+                </button>
+                <button id="current-location-btn">
+                    <span class="btn-icon">📍</span>
+                    My Location
+                </button>
+            </div>
+            
+            <div class="filter-container">
+                <label for="category-filter">Filter by Type:</label>
+                <select id="category-filter">
+                    <option value="all">All Locations</option>
+                    <option value="landmark">Landmarks</option>
+                    <option value="park">Parks</option>
+                    <option value="museum">Museums</option>
+                    <option value="restaurant">Restaurants</option>
+                </select>
+            </div>
         </div>
-        
-        <div id="map"></div>
-        
-        <div class="location-list">
-            <h3>All Locations</h3>
-            <ul id="locations-container"></ul>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="map-overlay">
+                    <div class="coordinates-display">
+                        Click anywhere on map to get coordinates
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location List -->
+            <div class="location-list">
+                <h3>📍 Discovered Locations</h3>
+                <div class="location-stats">
+                    <span id="locations-count">0</span> locations found
+                </div>
+                <ul id="locations-container"></ul>
+            </div>
         </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>Powered by OpenCage Geocoding API & Leaflet Maps</p>
+        </footer>
     </div>
-    
+
     <!-- Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
