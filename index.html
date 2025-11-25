@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Map - Points of Interest</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Interactive Map Explorer</h1>
+            <p>Discover interesting locations around the world</p>
+        </header>
+        
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search for locations...">
+            <button id="search-btn">Search</button>
+            <button id="current-location-btn">📍 My Location</button>
+        </div>
+        
+        <div class="filter-container">
+            <label for="category-filter">Filter by Category:</label>
+            <select id="category-filter">
+                <option value="all">All Categories</option>
+                <option value="landmark">Landmarks</option>
+                <option value="museum">Museums</option>
+                <option value="park">Parks</option>
+                <option value="restaurant">Restaurants</option>
+            </select>
+        </div>
+        
+        <div id="map"></div>
+        
+        <div class="location-list">
+            <h3>All Locations</h3>
+            <ul id="locations-container"></ul>
+        </div>
+    </div>
+    
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
