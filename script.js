@@ -1,9 +1,9 @@
 // Initialize the map
-const map = L.map('map').setView([40.7128, -74.0060], 12); // Default to New York
+const map = L.map('map').setView([40.7128, -74.0060], 12);
 
-// Add tile layer (OpenStreetMap)
+// Add tile layer
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
 // Sample locations data
@@ -14,8 +14,8 @@ const locations = [
         lat: 40.7812,
         lng: -73.9665,
         category: "park",
-        description: "A large public park in the heart of Manhattan, featuring walking paths, lakes, and recreational facilities.",
-        image: "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60"
+        description: "A large public park in Manhattan with walking paths and lakes.",
+        image: "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=500&q=60"
     },
     {
         id: 2,
@@ -23,8 +23,8 @@ const locations = [
         lat: 40.7794,
         lng: -73.9632,
         category: "museum",
-        description: "One of the world's largest and finest art museums with collections spanning 5,000 years of world culture.",
-        image: "https://images.unsplash.com/photo-1596383526467-59579c5e6a89?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60"
+        description: "One of the world's largest art museums.",
+        image: "https://images.unsplash.com/photo-1596383526467-59579c5e6a89?w=500&q=60"
     },
     {
         id: 3,
@@ -32,8 +32,8 @@ const locations = [
         lat: 40.6892,
         lng: -74.0445,
         category: "landmark",
-        description: "A colossal neoclassical sculpture on Liberty Island in New York Harbor, a gift from France to the United States.",
-        image: "https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60"
+        description: "Iconic statue in New York Harbor.",
+        image: "https://images.unsplash.com/photo-1548013146-72479768bada?w=500&q=60"
     },
     {
         id: 4,
@@ -41,8 +41,8 @@ const locations = [
         lat: 40.7484,
         lng: -73.9857,
         category: "landmark",
-        description: "A 102-story Art Deco skyscraper in Midtown Manhattan, offering observation decks with panoramic city views.",
-        image: "https://images.unsplash.com/photo-1502104034360-73176bb1e92e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60"
+        description: "Famous skyscraper with observation decks.",
+        image: "https://images.unsplash.com/photo-1502104034360-73176bb1e92e?w=500&q=60"
     },
     {
         id: 5,
@@ -50,223 +50,204 @@ const locations = [
         lat: 40.7061,
         lng: -73.9969,
         category: "landmark",
-        description: "A hybrid cable-stayed/suspension bridge connecting Manhattan and Brooklyn, offering stunning views of the city skyline.",
-        image: "https://images.unsplash.com/photo-1508004680779-013ba5954e72?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60"
-    },
-    {
-        id: 6,
-        name: "American Museum of Natural History",
-        lat: 40.7813,
-        lng: -73.9740,
-        category: "museum",
-        description: "One of the largest natural history museums in the world, featuring exhibits on human cultures, the natural world, and the universe.",
-        image: "https://images.unsplash.com/photo-1580651315532-97c1b95c687a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60"
-    },
-    {
-        id: 7,
-        name: "High Line",
-        lat: 40.7480,
-        lng: -74.0048,
-        category: "park",
-        description: "A 1.45-mile-long elevated linear park built on a former New York Central Railroad spur on the west side of Manhattan.",
-        image: "https://images.unsplash.com/photo-1560448204-603b3fc33ddc?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=60"
+        description: Historic bridge connecting Manhattan and Brooklyn.",
+        image: "https://images.unsplash.com/photo-1508004680779-013ba5954e72?w=500&q=60"
     }
 ];
 
-// Create custom icons for different categories
-const iconColors = {
-    landmark: 'red',
-    museum: 'blue',
-    park: 'green',
-    restaurant: 'orange'
-};
+// Store all markers
+let allMarkers = [];
 
-// Create marker cluster group
-const markers = L.markerClusterGroup();
-
-// Function to create custom icon
+// Create custom icons
 function createCustomIcon(category) {
+    const colors = {
+        landmark: 'red',
+        museum: 'blue',
+        park: 'green',
+        restaurant: 'orange'
+    };
+    
     return L.divIcon({
-        html: `<div style="background-color: ${iconColors[category]}; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${category.charAt(0).toUpperCase()}</div>`,
+        html: `<div style="background-color: ${colors[category] || 'gray'}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${category.charAt(0).toUpperCase()}</div>`,
         className: 'custom-marker',
         iconSize: [30, 30],
         iconAnchor: [15, 15]
     });
 }
 
-// Add markers to the map
-locations.forEach(location => {
-    const marker = L.marker([location.lat, location.lng], {
-        icon: createCustomIcon(location.category)
-    });
+// Add markers to map
+function addMarkersToMap(locationsArray) {
+    // Clear existing markers
+    allMarkers.forEach(marker => map.removeLayer(marker));
+    allMarkers = [];
     
-    // Create popup content
-    const popupContent = `
-        <div class="popup-content">
-            <div class="popup-title">${location.name}</div>
-            <span class="popup-category">${location.category}</span>
-            ${location.image ? `<img src="${location.image}" alt="${location.name}" class="popup-image">` : ''}
-            <p class="popup-description">${location.description}</p>
-        </div>
-    `;
-    
-    marker.bindPopup(popupContent);
-    
-    // Add animation on click
-    marker.on('click', function() {
-        // Animate marker
-        marker.setZIndexOffset(1000);
-        
-        // Center map on marker with smooth animation
-        map.flyTo([location.lat, location.lng], 15, {
-            duration: 1
-        });
-    });
-    
-    markers.addLayer(marker);
-});
-
-// Add markers to the map
-map.addLayer(markers);
-
-// Populate location list
-function populateLocationList(filteredLocations = locations) {
-    const locationsContainer = document.getElementById('locations-container');
-    locationsContainer.innerHTML = '';
-    
-    filteredLocations.forEach(location => {
-        const listItem = document.createElement('li');
-        listItem.className = 'location-item';
-        listItem.innerHTML = `
-            <div class="location-name">${location.name} <span class="location-category">${location.category}</span></div>
-            <div class="location-description">${location.description}</div>
-        `;
-        
-        listItem.addEventListener('click', () => {
-            map.flyTo([location.lat, location.lng], 15, {
-                duration: 1
-            });
-            
-            // Open the popup for this location
-            markers.getLayers().forEach(marker => {
-                if (marker.getLatLng().lat === location.lat && marker.getLatLng().lng === location.lng) {
-                    marker.openPopup();
-                }
-            });
-        });
-        
-        locationsContainer.appendChild(listItem);
-    });
-}
-
-// Initial population of location list
-populateLocationList();
-
-// Search functionality
-document.getElementById('search-btn').addEventListener('click', performSearch);
-document.getElementById('search-input').addEventListener('keyup', function(event) {
-    if (event.key === 'Enter') {
-        performSearch();
-    }
-});
-
-function performSearch() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    const categoryFilter = document.getElementById('category-filter').value;
-    
-    let filteredLocations = locations;
-    
-    // Apply search filter
-    if (searchTerm) {
-        filteredLocations = filteredLocations.filter(location => 
-            location.name.toLowerCase().includes(searchTerm) || 
-            location.description.toLowerCase().includes(searchTerm)
-        );
-    }
-    
-    // Apply category filter
-    if (categoryFilter !== 'all') {
-        filteredLocations = filteredLocations.filter(location => location.category === categoryFilter);
-    }
-    
-    // Update location list
-    populateLocationList(filteredLocations);
-    
-    // Show/hide markers based on filters
-    markers.clearLayers();
-    
-    filteredLocations.forEach(location => {
+    locationsArray.forEach(location => {
         const marker = L.marker([location.lat, location.lng], {
             icon: createCustomIcon(location.category)
         });
         
+        // Create popup content
         const popupContent = `
-            <div class="popup-content">
-                <div class="popup-title">${location.name}</div>
-                <span class="popup-category">${location.category}</span>
-                ${location.image ? `<img src="${location.image}" alt="${location.name}" class="popup-image">` : ''}
-                <p class="popup-description">${location.description}</p>
+            <div style="max-width: 250px;">
+                <h3 style="margin: 0 0 5px 0; color: #2c3e50;">${location.name}</h3>
+                <span style="background: ${getCategoryColor(location.category)}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${location.category}</span>
+                ${location.image ? `<img src="${location.image}" alt="${location.name}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 5px; margin: 8px 0;">` : ''}
+                <p style="margin: 8px 0 0 0; font-size: 14px; color: #555;">${location.description}</p>
             </div>
         `;
         
         marker.bindPopup(popupContent);
         
+        // Add click event
         marker.on('click', function() {
-            marker.setZIndexOffset(1000);
-            map.flyTo([location.lat, location.lng], 15, {
+            map.setView([location.lat, location.lng], 15, {
+                animate: true,
                 duration: 1
             });
         });
         
-        markers.addLayer(marker);
+        marker.addTo(map);
+        allMarkers.push(marker);
     });
+}
+
+// Get category color
+function getCategoryColor(category) {
+    const colors = {
+        landmark: '#e74c3c',
+        museum: '#3498db',
+        park: '#27ae60',
+        restaurant: '#f39c12'
+    };
+    return colors[category] || '#95a5a6';
+}
+
+// Populate location list
+function populateLocationList(locationsArray) {
+    const container = document.getElementById('locations-container');
+    container.innerHTML = '';
     
-    map.addLayer(markers);
+    locationsArray.forEach(location => {
+        const item = document.createElement('li');
+        item.className = 'location-item';
+        item.innerHTML = `
+            <div class="location-name">${location.name} 
+                <span class="location-category">${location.category}</span>
+            </div>
+            <div class="location-description">${location.description}</div>
+        `;
+        
+        item.addEventListener('click', () => {
+            map.setView([location.lat, location.lng], 15, {
+                animate: true,
+                duration: 1
+            });
+            
+            // Find and open the marker's popup
+            allMarkers.forEach(marker => {
+                const latLng = marker.getLatLng();
+                if (latLng.lat === location.lat && latLng.lng === location.lng) {
+                    marker.openPopup();
+                }
+            });
+        });
+        
+        container.appendChild(item);
+    });
+}
+
+// Search functionality
+function performSearch() {
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
     
-    // If there are filtered results, adjust map view to show them
-    if (filteredLocations.length > 0) {
-        const group = new L.featureGroup(markers.getLayers());
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const category = categoryFilter.value;
+    
+    let results = locations;
+    
+    // Filter by category
+    if (category !== 'all') {
+        results = results.filter(location => location.category === category);
+    }
+    
+    // Filter by search term
+    if (searchTerm) {
+        results = results.filter(location => 
+            location.name.toLowerCase().includes(searchTerm) ||
+            location.description.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Update map and list
+    addMarkersToMap(results);
+    populateLocationList(results);
+    
+    // Adjust map view to show all results
+    if (results.length > 0) {
+        const group = new L.featureGroup(allMarkers);
         map.fitBounds(group.getBounds().pad(0.1));
     }
 }
 
-// Category filter functionality
-document.getElementById('category-filter').addEventListener('change', performSearch);
+// Initialize the application
+function initApp() {
+    // Add initial markers
+    addMarkersToMap(locations);
+    populateLocationList(locations);
+    
+    // Set up event listeners
+    document.getElementById('search-btn').addEventListener('click', performSearch);
+    
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+    
+    document.getElementById('category-filter').addEventListener('change', performSearch);
+    
+    // Current location button
+    document.getElementById('current-location-btn').addEventListener('click', function() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    map.setView([lat, lng], 15, {
+                        animate: true,
+                        duration: 1
+                    });
+                    
+                    // Add temporary marker
+                    const marker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            html: '<div style="background-color: #e74c3c; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(map);
+                    
+                    marker.bindPopup('You are here!').openPopup();
+                    
+                    // Remove after 5 seconds
+                    setTimeout(() => {
+                        map.removeLayer(marker);
+                    }, 5000);
+                },
+                function(error) {
+                    alert('Could not get your location. Please check your browser permissions.');
+                }
+            );
+        } else {
+            alert('Geolocation is not supported by your browser.');
+        }
+    });
+    
+    console.log('Map application initialized successfully!');
+    console.log('Try searching for: "central", "museum", or "statue"');
+}
 
-// Current location functionality
-document.getElementById('current-location-btn').addEventListener('click', function() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                
-                map.flyTo([lat, lng], 15, {
-                    duration: 1
-                });
-                
-                // Add a marker for current location
-                const currentLocationMarker = L.marker([lat, lng], {
-                    icon: L.divIcon({
-                        html: '<div style="background-color: #e74c3c; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>',
-                        className: 'current-location-marker',
-                        iconSize: [25, 25],
-                        iconAnchor: [12, 12]
-                    })
-                }).addTo(map);
-                
-                currentLocationMarker.bindPopup('You are here!').openPopup();
-                
-                // Remove the marker after 5 seconds
-                setTimeout(() => {
-                    map.removeLayer(currentLocationMarker);
-                }, 5000);
-            },
-            function(error) {
-                alert('Unable to retrieve your location. Please ensure location services are enabled.');
-            }
-        );
-    } else {
-        alert('Geolocation is not supported by this browser.');
-    }
-});
+// Start the app when page loads
+document.addEventListener('DOMContentLoaded', initApp);
